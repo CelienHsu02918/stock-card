@@ -2,20 +2,29 @@ import streamlit as st
 import yfinance as yf
 
 st.set_page_config(page_title="股票診斷儀表板", layout="centered")
-
 st.title("📈 股票當沖與趨勢預測卡片")
 
 stock_id = st.text_input("請輸入台股代碼（預設 2464 盟立）：", "2464")
 
 if stock_id:
-    ticker = f"{stock_id}.TW"
-    data = yf.Ticker(ticker).history(period="5d")
+    # 支援台股上市(.TW)與上櫃(.TWO)
+    ticker_tw = f"{stock_id}.TW"
+    ticker_two = f"{stock_id}.TWO"
+    
+    # 先抓上市，若無資料再抓上櫃
+    data = yf.Ticker(ticker_tw).history(period="1mo")
+    if data.empty or len(data.dropna()) < 2:
+        data = yf.Ticker(ticker_two).history(period="1mo")
+
+    # 移除有缺失值的行
+    data = data.dropna()
 
     if len(data) >= 2:
         latest = data.iloc[-1]
-        close_price = round(latest['Close'], 2)
-        high_price = latest['High']
-        low_price = latest['Low']
+        
+        close_price = round(float(latest['Close']), 2)
+        high_price = float(latest['High'])
+        low_price = float(latest['Low'])
         
         # 計算 CDP / 三關價
         mid_gate = round((high_price + low_price + close_price) / 3, 2)
@@ -29,7 +38,7 @@ if stock_id:
         take_profit = round(up_gate * 0.999, 2)
 
         st.markdown(f"## **{stock_id} 當前股價：{close_price} 元**")
-        st.success("🔥 狀態評估：數據已載入")
+        st.success("🔥 狀態評估：數據已成功載入！")
 
         st.markdown("---")
         st.subheader("🔥 日內當沖進出場參考")
